@@ -1,0 +1,268 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  TEACHER
+  STUDENT
+}
+
+model Center {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  address     String?
+  latitude    Float?
+  longitude   Float?
+  phone       String?
+  email       String?
+  website     String?
+  logo        String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  users       User[]
+  subjects    Subject[]
+  courses     Course[]
+  payments    Payment[]
+  reviews     Review[]
+}
+
+model User {
+  id         Int      @id @default(autoincrement())
+  telegramId String?  @unique
+  firstName  String?
+  lastName   String?
+  username   String   @unique
+  password   String
+  email      String?  @unique
+  phone      String?
+  role       Role     @default(STUDENT)
+  centerId   String?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  center         Center?         @relation(fields: [centerId], references: [id])
+  enrollments    Enrollment[]
+  attendance     Attendance[]
+  results        Result[]
+  reviews        Review[]
+  notifications  Notification[]
+  payments       Payment[]
+  botState       BotState?
+  teacherProfile TeacherProfile?
+
+  @@index([centerId])
+  @@index([role])
+}
+
+model TeacherProfile {
+  id               Int     @id @default(autoincrement())
+  userId           Int     @unique
+  bio              String?
+  experienceYears  Int     @default(0)
+  kpiRating        Float   @default(0)
+  successStudents  Int     @default(0)
+  dropoutStudents  Int     @default(0)
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courses Course[]
+}
+
+model Subject {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  price       Float    @default(0)
+  durationMonths Int   @default(3)
+  centerId    String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  center   Center   @relation(fields: [centerId], references: [id])
+  courses  Course[]
+
+  @@index([centerId])
+}
+
+model Course {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String?
+  centerId    String?
+  subjectId   Int?
+  teacherId   Int
+  maxStudents Int      @default(30)
+  startDate   DateTime?
+  endDate     DateTime?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  center      Center?         @relation(fields: [centerId], references: [id])
+  subject     Subject?        @relation(fields: [subjectId], references: [id])
+  teacher     TeacherProfile  @relation(fields: [teacherId], references: [id])
+  enrollments Enrollment[]
+  attendance  Attendance[]
+  results     Result[]
+  reviews     Review[]
+
+  @@index([centerId])
+  @@index([teacherId])
+}
+
+model Enrollment {
+  id         Int              @id @default(autoincrement())
+  userId     Int
+  courseId   Int
+  status     EnrollmentStatus @default(ACTIVE)
+  startDate  DateTime         @default(now())
+  endDate    DateTime?
+  createdAt  DateTime         @default(now())
+
+  user    User    @relation(fields: [userId], references: [id])
+  course  Course  @relation(fields: [courseId], references: [id])
+
+  @@unique([userId, courseId])
+  @@index([userId])
+  @@index([courseId])
+}
+
+enum EnrollmentStatus {
+  ACTIVE
+  COMPLETED
+  DROPPED
+}
+
+model Attendance {
+  id        Int              @id @default(autoincrement())
+  userId    Int
+  courseId  Int
+  date      DateTime         @default(now())
+  status    AttendanceStatus @default(PRESENT)
+  note      String?
+  markedBy  Int?
+  createdAt DateTime         @default(now())
+
+  user   User   @relation(fields: [userId], references: [id])
+  course Course @relation(fields: [courseId], references: [id])
+
+  @@unique([userId, courseId, date])
+  @@index([courseId])
+  @@index([userId])
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+}
+
+model Result {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  courseId   Int
+  testName   String
+  score      Float
+  maxScore   Float    @default(100)
+  percentage Float
+  testDate   DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id])
+  course Course @relation(fields: [courseId], references: [id])
+
+  @@index([userId])
+  @@index([courseId])
+}
+
+model Payment {
+  id            Int           @id @default(autoincrement())
+  userId        Int
+  centerId      String
+  amount        Float
+  description   String?
+  paymentMethod PaymentMethod @default(CASH)
+  status        PaymentStatus @default(PENDING)
+  dueDate       DateTime?
+  paidAt        DateTime?
+  createdAt     DateTime      @default(now())
+
+  user   User   @relation(fields: [userId], references: [id])
+  center Center @relation(fields: [centerId], references: [id])
+
+  @@index([userId])
+  @@index([centerId])
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  TRANSFER
+  CLICK
+  PAYME
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+model Review {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  centerId  String
+  courseId  Int?
+  rating    Int      @default(5)
+  comment   String?
+  isVisible Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id])
+  center Center @relation(fields: [centerId], references: [id])
+  course Course? @relation(fields: [courseId], references: [id])
+
+  @@unique([userId, centerId])
+}
+
+model Notification {
+  id        Int                  @id @default(autoincrement())
+  userId    Int
+  title     String
+  content   String
+  type      NotificationType     @default(INFO)
+  isRead    Boolean              @default(false)
+  createdAt DateTime             @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+enum NotificationType {
+  INFO
+  WARNING
+  SUCCESS
+  PAYMENT
+  ATTENDANCE
+}
+
+model BotState {
+  id         Int      @id @default(autoincrement())
+  userId     Int      @unique
+  state      String   @default("idle")
+  data       Json?
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+}
