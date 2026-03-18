@@ -97,9 +97,9 @@ export default function CenterPage({ params }: { params: { id: string } }) {
       name:          String(data.firstName ?? data.name ?? ''),
       lastName:      String(data.lastName ?? ''),
       phone:         String(data.phone ?? ''),
-      price:         String((data as Subject).price ?? ''),
-      description:   String((data as Subject).description ?? ''),
-      durationMonths:String((data as Subject).durationMonths ?? '3'),
+      price:          String((data as any as Subject).price ?? ''),
+      description:    String((data as any as Subject).description ?? ''),
+      durationMonths: String((data as any as Subject).durationMonths ?? '3'),
     } : {});
     setTempPw('');
     setModal({ open: true, type, data });
