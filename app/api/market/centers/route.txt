@@ -1,0 +1,28 @@
+// app/api/market/centers/route.ts
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma"; // Prisma clientingiz yo'lini tekshiring
+
+export async function GET() {
+  try {
+    const centers = await prisma.center.findMany({
+      orderBy: { rating: 'desc' },
+      // Faqat kerakli maydonlarni olish
+      select: {
+        id: true,
+        name: true,
+        rating: true,
+        address: true,
+        desc: true,
+        lat: true,
+        lng: true,
+        // O'quvchilar va kurslar sonini hisoblash (agar relation bo'lsa)
+        _count: {
+          select: { students: true, courses: true }
+        }
+      }
+    });
+    return NextResponse.json(centers);
+  } catch (error) {
+    return NextResponse.json({ error: "Ma'lumot topilmadi" }, { status: 500 });
+  }
+}
