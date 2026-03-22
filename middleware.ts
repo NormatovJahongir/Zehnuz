@@ -1,11 +1,7 @@
-// 1. Yangi ochiq yo'l qo'shamiz (masalan, /api/health)
-const PUBLIC_PATHS = ['/login', '/register', '/api/login', '/api/register', '/api/bot', '/api/health'];
-
-// ... qolgan kodlar
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionFromRequest } from './lib/auth';
 
-const PUBLIC_PATHS = ['/login', '/register', '/api/login', '/api/register', '/api/bot'];
+const PUBLIC_PATHS = ['/login', '/register', '/api/login', '/api/register', '/api/bot','/api/health'];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
