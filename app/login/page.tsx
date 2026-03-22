@@ -163,7 +163,7 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <p className="text-slate-600 text-sm">© 2024 Zehn.uz</p>
+        <p className="text-slate-600 text-sm">© 2026 Zehn.uz</p>
       </div>
 
       {/* Right panel — form */}
