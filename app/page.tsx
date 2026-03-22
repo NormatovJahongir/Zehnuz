@@ -10,7 +10,7 @@ import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { useLanguage } from './context/LanguageContext';
 
-const CenterMapClient = dynamic(() => import('../components/CenterMapClient'), { 
+const CenterMapClient = dynamic(() => import('../components/MapPickerClient'), { 
   ssr: false,
   loading: () => <div className="h-[450px] bg-gray-100 animate-pulse rounded-[2.5rem]" />
 });
