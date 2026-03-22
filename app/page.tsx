@@ -8,9 +8,10 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
-import { useLanguage } from './context/LanguageContext';
+import { useLanguage } from '@/app/context/LanguageContext';
 
-const CenterMapClient = dynamic(() => import('../components/MapPickerClient'), { 
+// Xarita komponentini dinamik yuklash
+const CenterMapClient = dynamic(() => import('@/components/MapPickerClient'), { 
   ssr: false,
   loading: () => <div className="h-[450px] bg-gray-100 animate-pulse rounded-[2.5rem]" />
 });
@@ -27,9 +28,21 @@ const translations: any = {
     more: "Batafsil",
     allView: "Hammasini ko'rish",
     subject: "fan",
-    loading: "Yuklanmoqda..."
+    noDesc: "O'quv markazi haqida ma'lumot mavjud emas."
   },
-  // RU va EN lug'atlarini ham shu tarzda davom ettiring...
+  RU: {
+    heroTitle: "Найдите лучшее учебное заведение",
+    heroDesc: "Все учебные центры на одной платформе. Сравнивайте и записывайтесь.",
+    searchPlaceholder: "Центр, предмет или адрес...",
+    viewMap: "Центры на карте",
+    topCenters: "Лучшие центры",
+    stats: ["Центров", "Учеников", "Курсов", "Рейтинг"],
+    addCenter: "Присоединяйтесь",
+    more: "Подробнее",
+    allView: "Все центры",
+    subject: "предм.",
+    noDesc: "Информация об учебном центре отсутствует."
+  }
 };
 
 export default function MarketplacePage() {
@@ -45,7 +58,9 @@ export default function MarketplacePage() {
       try {
         const res = await fetch('/api/market/centers');
         const data = await res.json();
-        setCenters(data);
+        if (Array.isArray(data)) {
+          setCenters(data);
+        }
       } catch (err) {
         console.error("Xatolik:", err);
       } finally {
@@ -55,11 +70,11 @@ export default function MarketplacePage() {
     fetchCenters();
   }, []);
 
-  // 2. Qidiruv mantiqi
+  // 2. Qidiruv mantiqi (Safe navigation ?. ishlatilgan)
   const filteredCenters = useMemo(() => {
     return centers.filter(c => 
-      c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      c.address.toLowerCase().includes(searchTerm.toLowerCase())
+      c.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      c.address?.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [searchTerm, centers]);
 
@@ -100,7 +115,7 @@ export default function MarketplacePage() {
 
       {/* STATISTICS */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
-        <StatCard icon={School} value={loading ? "..." : `${centers.length}+`} label={t.stats[0]} color="blue" />
+        <StatCard icon={School} value={loading ? "..." : `${centers.length}`} label={t.stats[0]} color="blue" />
         <StatCard icon={Users} value="25k+" label={t.stats[1]} color="indigo" />
         <StatCard icon={BookOpen} value="400+" label={t.stats[2]} color="emerald" />
         <StatCard icon={Star} value="4.8" label={t.stats[3]} color="amber" />
@@ -139,7 +154,13 @@ export default function MarketplacePage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
             {filteredCenters.map((center) => (
-              <CenterCard key={center.id} center={center} btnText={t.more} subjectLabel={t.subject} />
+              <CenterCard 
+                key={center.id} 
+                center={center} 
+                btnText={t.more} 
+                subjectLabel={t.subject} 
+                noDesc={t.noDesc}
+              />
             ))}
           </div>
         )}
@@ -174,7 +195,7 @@ function StatCard({ icon: Icon, value, label, color }: any) {
   );
 }
 
-function CenterCard({ center, btnText, subjectLabel }: any) {
+function CenterCard({ center, btnText, subjectLabel, noDesc }: any) {
   return (
     <div className="bg-white rounded-[3.5rem] border border-gray-100 shadow-sm hover:shadow-2xl transition-all duration-500 overflow-hidden group">
       <div className="h-64 bg-slate-100 relative overflow-hidden">
@@ -184,15 +205,25 @@ function CenterCard({ center, btnText, subjectLabel }: any) {
          </div>
          <div className="absolute top-8 left-8 z-20 bg-blue-600 text-white text-[10px] font-black px-5 py-2 rounded-full uppercase tracking-widest shadow-lg">TOP RATED</div>
          <div className="absolute bottom-8 left-8 z-20 text-white font-black text-xl flex items-center gap-2 bg-black/20 backdrop-blur-md px-4 py-2 rounded-2xl">
-           <Star size={24} className="text-amber-400 fill-amber-400" /> {center.rating || 5.0}
+           <Star size={24} className="text-amber-400 fill-amber-400" /> {center.rating || "5.0"}
          </div>
       </div>
       <div className="p-10 space-y-8">
-        <h3 className="text-3xl font-black text-gray-900 group-hover:text-blue-600 transition-colors line-clamp-1">{center.name}</h3>
-        <p className="text-gray-500 font-medium line-clamp-2 leading-relaxed h-14 text-lg">{center.desc || "O'quv markazi haqida ma'lumot mavjud emas."}</p>
+        <h3 className="text-3xl font-black text-gray-900 group-hover:text-blue-600 transition-colors line-clamp-1">
+          {center.name}
+        </h3>
+        <p className="text-gray-500 font-medium line-clamp-2 leading-relaxed h-14 text-lg">
+          {center.desc || noDesc}
+        </p>
         <div className="flex items-center gap-8 py-6 border-y border-gray-50">
-          <div className="flex items-center gap-3 text-base font-black text-gray-700"><Users size={24} className="text-blue-500" /> {center._count?.students || 0}</div>
-          <div className="flex items-center gap-3 text-base font-black text-gray-700"><BookOpen size={24} className="text-indigo-500" /> {center._count?.courses || 0} {subjectLabel}</div>
+          <div className="flex items-center gap-3 text-base font-black text-gray-700">
+            <Users size={24} className="text-blue-500" /> 
+            {center._count?.students || 0}
+          </div>
+          <div className="flex items-center gap-3 text-base font-black text-gray-700">
+            <BookOpen size={24} className="text-indigo-500" /> 
+            {center._count?.courses || 0} {subjectLabel}
+          </div>
         </div>
         <Link href={`/center/${center.id}`} className="w-full bg-slate-900 text-white py-6 rounded-[2rem] font-black text-lg flex items-center justify-center gap-3 group-hover:bg-blue-600 transition-all shadow-xl">
           {btnText} <ArrowRight size={24} />
