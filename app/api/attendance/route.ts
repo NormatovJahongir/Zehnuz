@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
+import { canAccessCenter, getSessionHeaders, hasAnyRole } from '@/lib/apiAuth';
+import { normalizeToUtcStartOfDay } from '@/lib/security';
 
 const markSchema = z.object({
   courseId:  z.number(),
@@ -13,12 +15,29 @@ const markSchema = z.object({
 });
 
 export async function GET(req: NextRequest) {
+  const session = getSessionHeaders(req);
+  if (!session) return NextResponse.json({ error: 'Auth kerak' }, { status: 401 });
+  if (!hasAnyRole(session.role, ['SUPER_ADMIN', 'ADMIN', 'TEACHER'])) {
+    return NextResponse.json({ error: "Ruxsat yo'q" }, { status: 403 });
+  }
+
   const courseId = req.nextUrl.searchParams.get('courseId');
   const date     = req.nextUrl.searchParams.get('date');
 
   if (!courseId) return NextResponse.json({ error: 'courseId kerak' }, { status: 400 });
+  const courseIdNum = Number(courseId);
+  const course = await prisma.course.findUnique({
+    where: { id: courseIdNum },
+    select: { centerId: true, teacher: { select: { userId: true } } },
+  });
+  if (!course || !canAccessCenter(session, course.centerId)) {
+    return NextResponse.json({ error: "Ruxsat yo'q" }, { status: 403 });
+  }
+  if (session.role === 'TEACHER' && course.teacher?.userId !== session.userId) {
+    return NextResponse.json({ error: "Ruxsat yo'q" }, { status: 403 });
+  }
 
-  const where: Record<string, unknown> = { courseId: Number(courseId) };
+  const where: Record<string, unknown> = { courseId: courseIdNum };
   if (date) {
     const start = new Date(date);
     start.setHours(0, 0, 0, 0);
@@ -47,6 +66,12 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const session = getSessionHeaders(req);
+  if (!session) return NextResponse.json({ error: 'Auth kerak' }, { status: 401 });
+  if (!hasAnyRole(session.role, ['SUPER_ADMIN', 'ADMIN', 'TEACHER'])) {
+    return NextResponse.json({ error: "Ruxsat yo'q" }, { status: 403 });
+  }
+
   const body = await req.json();
   const parsed = markSchema.safeParse(body);
   if (!parsed.success) {
@@ -54,8 +79,29 @@ export async function POST(req: NextRequest) {
   }
 
   const { courseId, records, date } = parsed.data;
-  const markedBy = Number(req.headers.get('x-user-id'));
-  const attendanceDate = date ? new Date(date) : new Date();
+  const course = await prisma.course.findUnique({
+    where: { id: courseId },
+    select: { centerId: true, teacher: { select: { userId: true } } },
+  });
+  if (!course || !canAccessCenter(session, course.centerId)) {
+    return NextResponse.json({ error: "Ruxsat yo'q" }, { status: 403 });
+  }
+  if (session.role === 'TEACHER' && course.teacher?.userId !== session.userId) {
+    return NextResponse.json({ error: "Ruxsat yo'q" }, { status: 403 });
+  }
+
+  const allowedStudents = await prisma.enrollment.findMany({
+    where: { courseId, status: 'ACTIVE' },
+    select: { userId: true },
+  });
+  const allowedUserIds = new Set(allowedStudents.map((x) => x.userId));
+  const hasInvalidRecord = records.some((r) => !allowedUserIds.has(r.userId));
+  if (hasInvalidRecord) {
+    return NextResponse.json({ error: "Foydalanuvchi kursga yozilmagan" }, { status: 400 });
+  }
+
+  const markedBy = session.userId;
+  const attendanceDate = normalizeToUtcStartOfDay(date ? new Date(date) : new Date());
 
   // Upsert each record
   const results = await Promise.all(
