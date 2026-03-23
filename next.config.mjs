@@ -17,11 +17,11 @@ const nextConfig = {
             key: 'Content-Security-Policy',
             value: `
               default-src 'self';
-              script-src 'self' 'unsafe-eval' 'unsafe-inline' https://unpkg.com;
+              script-src 'self' https://unpkg.com https://telegram.org;
               style-src 'self' 'unsafe-inline' https://unpkg.com;
               img-src 'self' blob: data: https://unpkg.com https://*.openstreetmap.org;
               font-src 'self' data:;
-              connect-src 'self' https://*.openstreetmap.org;
+              connect-src 'self' https://*.openstreetmap.org https://api.telegram.org;
               frame-ancestors 'none';
               upgrade-insecure-requests;
             `.replace(/\s{2,}/g, ' ').trim(),
