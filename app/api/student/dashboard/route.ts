@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getSessionHeaders } from '@/lib/apiAuth';
 
 export async function GET(req: NextRequest) {
-  const userId = Number(req.headers.get('x-user-id'));
-  if (!userId) return NextResponse.json({ error: 'Auth kerak' }, { status: 401 });
+  const session = getSessionHeaders(req);
+  if (!session) return NextResponse.json({ error: 'Auth kerak' }, { status: 401 });
+  if (session.role !== 'STUDENT') {
+    return NextResponse.json({ error: "Ruxsat yo'q" }, { status: 403 });
+  }
+  const userId = session.userId;
 
   const [user, enrollments, recentAttendance, results, payments, notifications] = await Promise.all([
     prisma.user.findUnique({
