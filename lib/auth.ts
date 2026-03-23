@@ -2,9 +2,11 @@ import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 import { NextRequest } from 'next/server';
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET ?? 'fallback-secret-change-in-production'
-);
+const rawJwtSecret = process.env.JWT_SECRET;
+if (!rawJwtSecret) {
+  throw new Error('JWT_SECRET is required');
+}
+const JWT_SECRET = new TextEncoder().encode(rawJwtSecret);
 
 export interface JWTPayload {
   userId: number;
