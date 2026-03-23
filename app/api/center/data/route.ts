@@ -3,27 +3,37 @@ import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { generateUsername } from '@/lib/utils';
+import { canAccessCenter, getSessionHeaders, hasAnyRole } from '@/lib/apiAuth';
 
 // GET: fetch all data for a center
 export async function GET(req: NextRequest) {
+  const session = getSessionHeaders(req);
+  if (!session) return NextResponse.json({ error: 'Auth kerak' }, { status: 401 });
+
   const centerId = req.headers.get('x-center-id')
     ?? req.nextUrl.searchParams.get('centerId');
 
   if (!centerId) return NextResponse.json({ error: 'Center ID topilmadi' }, { status: 400 });
+  if (!hasAnyRole(session.role, ['SUPER_ADMIN', 'ADMIN', 'TEACHER'])) {
+    return NextResponse.json({ error: "Ruxsat yo'q" }, { status: 403 });
+  }
+  if (!canAccessCenter(session, centerId)) {
+    return NextResponse.json({ error: "Ruxsat yo'q" }, { status: 403 });
+  }
 
   const [center, subjects, teachers, students, courses] = await Promise.all([
     prisma.center.findUnique({ where: { id: centerId } }),
-    prisma.subject.findMany({ where: { centerId }, orderBy: { createdAt: 'desc' } }),
+    prisma.subject.findMany({ where: { centerId, isActive: true }, orderBy: { createdAt: 'desc' } }),
     prisma.user.findMany({
-      where: { centerId, role: 'TEACHER' },
+      where: { centerId, role: 'TEACHER', isActive: true },
       select: { id: true, firstName: true, lastName: true, phone: true, username: true, createdAt: true },
     }),
     prisma.user.findMany({
-      where: { centerId, role: 'STUDENT' },
+      where: { centerId, role: 'STUDENT', isActive: true },
       select: { id: true, firstName: true, lastName: true, phone: true, username: true, createdAt: true },
     }),
     prisma.course.findMany({
-      where: { centerId },
+      where: { centerId, isActive: true },
       include: {
         subject: true,
         teacher: { include: { user: { select: { firstName: true, lastName: true } } } },
@@ -59,10 +69,14 @@ const addSchema = z.discriminatedUnion('type', [
 
 // POST: add subject / teacher / student
 export async function POST(req: NextRequest) {
-  const centerId = req.headers.get('x-center-id')
-    ?? (await req.json().then((b: Record<string, string>) => b.centerId).catch(() => null));
+  const session = getSessionHeaders(req);
+  if (!session) return NextResponse.json({ error: 'Auth kerak' }, { status: 401 });
+  if (!hasAnyRole(session.role, ['SUPER_ADMIN', 'ADMIN'])) {
+    return NextResponse.json({ error: "Ruxsat yo'q" }, { status: 403 });
+  }
 
-  const body = await req.json().catch(() => ({}));
+  const body = await req.json().catch(() => ({} as Record<string, unknown>));
+  const centerId = req.headers.get('x-center-id') ?? (typeof body.centerId === 'string' ? body.centerId : null);
   if (!body.centerId && centerId) body.centerId = centerId;
 
   const parsed = addSchema.safeParse(body);
@@ -72,6 +86,9 @@ export async function POST(req: NextRequest) {
 
   const cid: string = body.centerId;
   if (!cid) return NextResponse.json({ error: 'Center ID kerak' }, { status: 400 });
+  if (!canAccessCenter(session, cid)) {
+    return NextResponse.json({ error: "Ruxsat yo'q" }, { status: 403 });
+  }
 
   let result;
 
@@ -96,6 +113,12 @@ export async function POST(req: NextRequest) {
       data: { firstName, lastName, phone, role, username, password: hashedPw, centerId: cid },
     });
 
+    if (role === 'TEACHER') {
+      await prisma.teacherProfile.create({
+        data: { userId: result.id },
+      });
+    }
+
     // Return temp password for admin to share
     return NextResponse.json({ success: true, data: result, tempPassword: tempPw }, { status: 201 });
   }
@@ -105,6 +128,12 @@ export async function POST(req: NextRequest) {
 
 // PUT: update subject / teacher / student
 export async function PUT(req: NextRequest) {
+  const session = getSessionHeaders(req);
+  if (!session) return NextResponse.json({ error: 'Auth kerak' }, { status: 401 });
+  if (!hasAnyRole(session.role, ['SUPER_ADMIN', 'ADMIN'])) {
+    return NextResponse.json({ error: "Ruxsat yo'q" }, { status: 403 });
+  }
+
   const body = await req.json();
   const { type, id, ...fields } = body;
 
@@ -113,6 +142,10 @@ export async function PUT(req: NextRequest) {
   let result;
 
   if (type === 'subject') {
+    const subject = await prisma.subject.findUnique({ where: { id: Number(id) }, select: { centerId: true } });
+    if (!subject || !canAccessCenter(session, subject.centerId)) {
+      return NextResponse.json({ error: "Ruxsat yo'q" }, { status: 403 });
+    }
     result = await prisma.subject.update({
       where: { id: Number(id) },
       data: {
@@ -123,6 +156,10 @@ export async function PUT(req: NextRequest) {
       },
     });
   } else {
+    const user = await prisma.user.findUnique({ where: { id: Number(id) }, select: { centerId: true } });
+    if (!user || !canAccessCenter(session, user.centerId)) {
+      return NextResponse.json({ error: "Ruxsat yo'q" }, { status: 403 });
+    }
     result = await prisma.user.update({
       where: { id: Number(id) },
       data: {
@@ -138,17 +175,31 @@ export async function PUT(req: NextRequest) {
 
 // DELETE: remove subject / teacher / student
 export async function DELETE(req: NextRequest) {
+  const session = getSessionHeaders(req);
+  if (!session) return NextResponse.json({ error: 'Auth kerak' }, { status: 401 });
+  if (!hasAnyRole(session.role, ['SUPER_ADMIN', 'ADMIN'])) {
+    return NextResponse.json({ error: "Ruxsat yo'q" }, { status: 403 });
+  }
+
   const body = await req.json();
   const { type, id } = body;
 
   if (!id || !type) return NextResponse.json({ error: 'ID va type kerak' }, { status: 400 });
 
   if (type === 'subject') {
+    const subject = await prisma.subject.findUnique({ where: { id: Number(id) }, select: { centerId: true } });
+    if (!subject || !canAccessCenter(session, subject.centerId)) {
+      return NextResponse.json({ error: "Ruxsat yo'q" }, { status: 403 });
+    }
     await prisma.subject.update({
       where: { id: Number(id) },
       data: { isActive: false },
     });
   } else {
+    const user = await prisma.user.findUnique({ where: { id: Number(id) }, select: { centerId: true } });
+    if (!user || !canAccessCenter(session, user.centerId)) {
+      return NextResponse.json({ error: "Ruxsat yo'q" }, { status: 403 });
+    }
     // Soft delete — deactivate user
     await prisma.user.update({
       where: { id: Number(id) },
