@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
+import { canAccessCenter, getSessionHeaders, hasAnyRole } from '@/lib/apiAuth';
 
 const schema = z.object({
   id:          z.string().min(1),
@@ -15,8 +16,17 @@ const schema = z.object({
 });
 
 export async function GET(req: NextRequest) {
+  const session = getSessionHeaders(req);
+  if (!session) return NextResponse.json({ error: 'Auth kerak' }, { status: 401 });
+  if (!hasAnyRole(session.role, ['SUPER_ADMIN', 'ADMIN'])) {
+    return NextResponse.json({ error: "Ruxsat yo'q" }, { status: 403 });
+  }
+
   const centerId = req.nextUrl.searchParams.get('centerId');
   if (!centerId) return NextResponse.json({ error: 'Center ID kerak' }, { status: 400 });
+  if (!canAccessCenter(session, centerId)) {
+    return NextResponse.json({ error: "Ruxsat yo'q" }, { status: 403 });
+  }
 
   const center = await prisma.center.findUnique({ where: { id: centerId } });
   if (!center) return NextResponse.json({ error: 'Markaz topilmadi' }, { status: 404 });
@@ -25,6 +35,12 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const session = getSessionHeaders(req);
+  if (!session) return NextResponse.json({ error: 'Auth kerak' }, { status: 401 });
+  if (!hasAnyRole(session.role, ['SUPER_ADMIN', 'ADMIN'])) {
+    return NextResponse.json({ error: "Ruxsat yo'q" }, { status: 403 });
+  }
+
   const body = await req.json();
   const parsed = schema.safeParse(body);
   if (!parsed.success) {
@@ -32,6 +48,9 @@ export async function POST(req: NextRequest) {
   }
 
   const { id, latitude, longitude, ...rest } = parsed.data;
+  if (!canAccessCenter(session, id)) {
+    return NextResponse.json({ error: "Ruxsat yo'q" }, { status: 403 });
+  }
 
   const updated = await prisma.center.update({
     where: { id },
