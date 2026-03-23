@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionFromRequest } from './lib/auth';
 
-const PUBLIC_PATHS = ['/login', '/register', '/api/login', '/api/register', '/api/bot','/api/health'];
+const PUBLIC_EXACT_PATHS = ['/', '/login', '/register'];
+const PUBLIC_PREFIX_PATHS = ['/api/login', '/api/register', '/api/bot', '/api/health', '/api/market/centers'];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   // Allow public paths
-  if (PUBLIC_PATHS.some(p => pathname.startsWith(p))) {
+  if (PUBLIC_EXACT_PATHS.includes(pathname) || PUBLIC_PREFIX_PATHS.some(p => pathname.startsWith(p))) {
     return NextResponse.next();
   }
 
@@ -30,7 +31,7 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Role-based route protection
+  // Role-based route protection (UI routes)
   const { role, centerId } = session;
 
   if (pathname.startsWith('/admin') && role !== 'SUPER_ADMIN') {
