@@ -2,11 +2,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
 import { sendMessage, sendWebAppButton } from '@/lib/telegram';
+import { escapeHtml } from '@/lib/security';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://zehn.uz';
+const WEBHOOK_SECRET = process.env.TELEGRAM_WEBHOOK_SECRET;
 
 export async function POST(req: NextRequest) {
   try {
+    if (WEBHOOK_SECRET) {
+      const headerSecret = req.headers.get('x-telegram-bot-api-secret-token');
+      if (headerSecret !== WEBHOOK_SECRET) {
+        return NextResponse.json({ ok: false, error: 'Unauthorized webhook' }, { status: 401 });
+      }
+    }
+
     const payload = await req.json();
     const msg = payload.message ?? payload.callback_query?.message;
     if (!msg) return NextResponse.json({ ok: true });
@@ -49,17 +58,18 @@ export async function POST(req: NextRequest) {
     }
 
     if (text === '/start') {
+      const safeFirstName = escapeHtml(dbUser.firstName ?? '');
       if (dbUser.role === 'ADMIN' && dbUser.centerId) {
         await sendWebAppButton(
           chatId,
-          `Xush kelibsiz, <b>${dbUser.firstName}</b>! Markazingiz boshqaruv paneliga kirishingiz mumkin.`,
+          `Xush kelibsiz, <b>${safeFirstName}</b>! Markazingiz boshqaruv paneliga kirishingiz mumkin.`,
           '📊 Boshqaruv paneli',
           `${APP_URL}/center/${dbUser.centerId}`
         );
       } else if (dbUser.role === 'TEACHER') {
         await sendWebAppButton(
           chatId,
-          `Assalomu alaykum, <b>${dbUser.firstName}</b>! O'qituvchi paneliga o'ting.`,
+          `Assalomu alaykum, <b>${safeFirstName}</b>! O'qituvchi paneliga o'ting.`,
           '📚 Dars jadvali',
           `${APP_URL}/teacher/attendance`
         );
@@ -87,8 +97,11 @@ export async function POST(req: NextRequest) {
     }
 
     if (text === '/profile' && dbUser) {
+      const safeName = escapeHtml(dbUser.firstName ?? '—');
+      const safeLogin = escapeHtml(dbUser.username);
+      const safeRole = escapeHtml(dbUser.role);
       await sendMessage(chatId,
-        `<b>Profilingiz:</b>\n\nIsm: ${dbUser.firstName ?? '—'}\nLogin: ${dbUser.username}\nRol: ${dbUser.role}`
+        `<b>Profilingiz:</b>\n\nIsm: ${safeName}\nLogin: ${safeLogin}\nRol: ${safeRole}`
       );
     }
 
