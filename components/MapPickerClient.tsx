@@ -17,6 +17,17 @@ export default function MapPickerClient({
   const mapInstance = useRef<any>(null);
   const markerRef = useRef<any>(null);
   const markersGroupRef = useRef<any>(null);
+  const onLocationSelectRef = useRef<MapPickerProps['onLocationSelect']>(onLocationSelect);
+  const initialPosRef = useRef<[number, number]>(initialPos);
+
+  // Handler ichida eng so'nggi callback/pos ishlatilishi uchun ref’lar yangilanadi.
+  useEffect(() => {
+    onLocationSelectRef.current = onLocationSelect;
+  }, [onLocationSelect]);
+
+  useEffect(() => {
+    initialPosRef.current = initialPos;
+  }, [initialPos]);
 
   useEffect(() => {
     if (!mapRef.current || mapInstance.current) return;
@@ -30,24 +41,24 @@ export default function MapPickerClient({
         shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
       });
 
-      const map = L.map(mapRef.current!).setView(initialPos, 13);
+      const map = L.map(mapRef.current!).setView(initialPosRef.current, 13);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap',
         maxZoom: 19,
       }).addTo(map);
 
       // Agar joylashuvni tanlash funksiyasi bo'lsa (registratsiya uchun)
-      if (onLocationSelect) {
-        const marker = L.marker(initialPos, { draggable: true }).addTo(map);
+      if (onLocationSelectRef.current) {
+        const marker = L.marker(initialPosRef.current, { draggable: true }).addTo(map);
         marker.on('dragend', () => {
           const pos = marker.getLatLng();
-          onLocationSelect({ lat: pos.lat, lng: pos.lng });
+          onLocationSelectRef.current?.({ lat: pos.lat, lng: pos.lng });
         });
 
         map.on('click', (e: any) => {
           const { lat, lng } = e.latlng;
           marker.setLatLng([lat, lng]);
-          onLocationSelect({ lat, lng });
+          onLocationSelectRef.current?.({ lat, lng });
         });
         markerRef.current = marker;
       }
