@@ -5,12 +5,12 @@ import dynamic from 'next/dynamic';
 import {
   LayoutDashboard, BookOpen, UserCheck, Users, CreditCard,
   CalendarCheck, Map, Plus, Pencil, Trash2, Loader2,
-  Save, Eye, EyeOff, TrendingUp, CheckCircle2, AlertCircle, Settings
+  Save, TrendingUp, CheckCircle2, AlertCircle, Settings
 } from 'lucide-react';
 import StatCard from '@/components/StatCard';
 import Sidebar from '@/components/Sidebar';
 import Modal from '@/components/Modal';
-import { formatCurrency, formatDate, getInitials } from '@/lib/utils';
+import { formatCurrency, getInitials } from '@/lib/utils';
 
 const MapPicker = dynamic(() => import('@/components/MapPickerClient'), {
   ssr: false,
@@ -35,11 +35,9 @@ export default function CenterPage({ params }: { params: { id: string } }) {
   const [modal, setModal] = useState<{ open: boolean; type: Tab | ''; data?: any }>({ open: false, type: '' });
   const [form, setForm] = useState<any>({});
   const [tempPw, setTempPw] = useState('');
-  const [showPw, setShowPw] = useState(false);
-  const [settingsForm, setSettingsForm] = useState<any>({});
   const [location, setLocation] = useState({ lat: 41.2995, lng: 69.2401 });
 
-  // 1. Navigatsiya elementlari (href qo'shildi build xatosini oldini olish uchun)
+  // 1. Navigatsiya elementlari - Build xatolarini oldini olish uchun href majburiy
   const navItems = useMemo(() => [
     { icon: LayoutDashboard, label: 'Dashboard', id: 'dashboard', href: '#' },
     { icon: BookOpen,        label: 'Fanlar',    id: 'subjects',  href: '#subjects' },
@@ -62,13 +60,6 @@ export default function CenterPage({ params }: { params: { id: string } }) {
         setTeachers(data.teachers ?? []);
         setStudents(data.students ?? []);
         if (data.center) {
-          setSettingsForm({
-            name: data.center.name ?? '',
-            description: data.center.description ?? '',
-            address: data.center.address ?? '',
-            phone: data.center.phone ?? '',
-            email: data.center.email ?? '',
-          });
           setLocation({ lat: data.center.latitude ?? 41.2995, lng: data.center.longitude ?? 69.2401 });
         }
       }
@@ -150,7 +141,7 @@ export default function CenterPage({ params }: { params: { id: string } }) {
 
   return (
     <div className="flex min-h-screen bg-slate-50">
-      {/* 2. SIDEBAR - Build xatoligi to'g'irlandi */}
+      {/* 2. SIDEBAR - href va onClick xatolari bartaraf etildi */}
       <Sidebar
         title={center?.name ?? 'Markaz'}
         subtitle="Admin panel"
@@ -190,29 +181,37 @@ export default function CenterPage({ params }: { params: { id: string } }) {
         <div className="flex-1 p-4 lg:p-8 space-y-6">
           {tab === 'dashboard' && (
             <>
+              {/* StatCard-lar div bilan o'raldi Build xatoligini oldini olish uchun */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatCard icon={BookOpen} label="Fanlar" value={subjects.length} color="blue" onClick={() => setTab('subjects')} />
-                <StatCard icon={UserCheck} label="Ustozlar" value={teachers.length} color="purple" onClick={() => setTab('teachers')} />
-                <StatCard icon={Users} label="O'quvchilar" value={students.length} color="green" onClick={() => setTab('students')} />
-                <StatCard icon={TrendingUp} label="Daromad" value={formatCurrency(totalRevenue)} sub={`${pending} kutilmoqda`} color="orange" onClick={() => setTab('payments')} />
-              </div>
-              <div className="grid lg:grid-cols-2 gap-6">
-                <div className="card p-6">
-                  <h3 className="font-bold text-slate-800 mb-4">So'nggi o'quvchilar</h3>
-                  {students.length === 0 ? <p className="text-center py-8 text-slate-400 text-sm">Hali o'quvchi yo'q</p> : 
-                    <div className="space-y-3">
-                      {students.slice(0, 5).map(s => (
-                        <div key={s.id} className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs">{getInitials(`${s.firstName} ${s.lastName}`)}</div>
-                          <div className="flex-1 truncate">
-                            <p className="text-sm font-medium text-slate-700">{s.firstName} {s.lastName}</p>
-                            <p className="text-[10px] text-slate-400">{s.phone || s.username}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  }
+                <div onClick={() => setTab('subjects')} className="cursor-pointer transition-transform active:scale-95">
+                  <StatCard icon={BookOpen} label="Fanlar" value={subjects.length} color="blue" />
                 </div>
+                <div onClick={() => setTab('teachers')} className="cursor-pointer transition-transform active:scale-95">
+                  <StatCard icon={UserCheck} label="Ustozlar" value={teachers.length} color="purple" />
+                </div>
+                <div onClick={() => setTab('students')} className="cursor-pointer transition-transform active:scale-95">
+                  <StatCard icon={Users} label="O'quvchilar" value={students.length} color="green" />
+                </div>
+                <div onClick={() => setTab('payments')} className="cursor-pointer transition-transform active:scale-95">
+                  <StatCard icon={TrendingUp} label="Daromad" value={formatCurrency(totalRevenue)} sub={`${pending} kutilmoqda`} color="orange" />
+                </div>
+              </div>
+              
+              <div className="card p-6">
+                <h3 className="font-bold text-slate-800 mb-4">So'nggi o'quvchilar</h3>
+                {students.length === 0 ? <p className="text-center py-8 text-slate-400 text-sm">Hali o'quvchi yo'q</p> : 
+                  <div className="space-y-3">
+                    {students.slice(0, 5).map(s => (
+                      <div key={s.id} className="flex items-center gap-3 p-2 hover:bg-slate-50 rounded-lg transition-colors">
+                        <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs">{getInitials(`${s.firstName} ${s.lastName}`)}</div>
+                        <div className="flex-1 truncate">
+                          <p className="text-sm font-medium text-slate-700">{s.firstName} {s.lastName}</p>
+                          <p className="text-[10px] text-slate-400">{s.phone || "Tel kiritilmagan"}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                }
               </div>
             </>
           )}
@@ -221,9 +220,9 @@ export default function CenterPage({ params }: { params: { id: string } }) {
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {subjects.length === 0 ? <EmptyState icon={BookOpen} text="Fan qo'shilmagan" action={() => openModal('subjects')} /> :
                 subjects.map(s => (
-                  <div key={s.id} className="card p-6 hover:shadow-md transition-shadow">
+                  <div key={s.id} className="card p-6 hover:shadow-md transition-shadow group">
                     <div className="flex justify-between items-start mb-4">
-                      <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center"><BookOpen size={20} /></div>
+                      <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform"><BookOpen size={20} /></div>
                       <div className="flex gap-1">
                         <button onClick={() => openModal('subjects', s)} className="p-1.5 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-blue-50"><Pencil size={15} /></button>
                         <button onClick={() => handleDelete('subject', s.id)} className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50"><Trash2 size={15} /></button>
@@ -244,16 +243,19 @@ export default function CenterPage({ params }: { params: { id: string } }) {
             <div className="card p-6 space-y-4">
               <div className="flex justify-between items-center"><h2 className="font-bold text-slate-800">Markaz joylashuvi</h2></div>
               <MapPicker initialPos={[location.lat, location.lng]} onLocationSelect={setLocation} />
-              <button onClick={async () => {
-                setSaving(true);
-                const res = await fetch('/api/center/settings', {
-                  method: 'POST', headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ id: centerId, lat: location.lat, lng: location.lng }),
-                });
-                setSaving(false);
-                if (res.ok) showMsg('ok', 'Joylashuv saqlandi!');
-                else showMsg('err', 'Xatolik yuz berdi');
-              }} className="btn-primary w-fit flex items-center gap-2">
+              <button 
+                onClick={async () => {
+                  setSaving(true);
+                  const res = await fetch('/api/center/settings', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: centerId, lat: location.lat, lng: location.lng }),
+                  });
+                  setSaving(false);
+                  if (res.ok) showMsg('ok', 'Joylashuv saqlandi!');
+                }} 
+                className="btn-primary w-fit flex items-center gap-2"
+                disabled={saving}
+              >
                 {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} Saqlash
               </button>
             </div>
@@ -273,49 +275,32 @@ export default function CenterPage({ params }: { params: { id: string } }) {
         </nav>
       </main>
 
-      {/* 5. MODALS */}
+      {/* 5. MODAL Tizimi */}
       <Modal open={modal.open && !tempPw} onClose={() => setModal({ open: false, type: '' })} title={form.id ? "Tahrirlash" : "Yangi qo'shish"}>
         <form onSubmit={handleSave} className="space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1">Nomi / Ismi</label>
-            <input className="input" placeholder="Kiriting..." value={form.name ?? ''} onChange={e => setForm({ ...form, name: e.target.value })} required />
-          </div>
-          
+          <input className="input" placeholder="Nomi / Ismi" value={form.name ?? ''} onChange={e => setForm({ ...form, name: e.target.value })} required />
           {modal.type === 'subjects' ? (
              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-slate-500 mb-1">Narxi (so'm)</label>
-                  <input type="number" className="input" placeholder="500000" value={form.price ?? ''} onChange={e => setForm({...form, price: e.target.value})} />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-500 mb-1">Davomiyligi (oy)</label>
-                  <input type="number" className="input" placeholder="3" value={form.durationMonths ?? ''} onChange={e => setForm({...form, durationMonths: e.target.value})} />
-                </div>
+                <input type="number" className="input" placeholder="Narxi (so'm)" value={form.price ?? ''} onChange={e => setForm({...form, price: e.target.value})} />
+                <input type="number" className="input" placeholder="Davomiyligi (oy)" value={form.durationMonths ?? ''} onChange={e => setForm({...form, durationMonths: e.target.value})} />
              </div>
           ) : (
-             <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Telefon raqami</label>
-                <input className="input" placeholder="+998" value={form.phone ?? ''} onChange={e => setForm({...form, phone: e.target.value})} />
-             </div>
+             <input className="input" placeholder="Telefon raqami (+998...)" value={form.phone ?? ''} onChange={e => setForm({...form, phone: e.target.value})} />
           )}
-          <div className="flex gap-3 mt-6">
-            <button type="button" onClick={() => setModal({open: false, type: ''})} className="btn-secondary flex-1">Bekor qilish</button>
-            <button type="submit" className="btn-primary flex-1 py-3 justify-center" disabled={saving}>
-              {saving ? <Loader2 size={16} className="animate-spin" /> : "Saqlash"}
-            </button>
-          </div>
+          <button type="submit" className="btn-primary w-full py-3 justify-center" disabled={saving}>
+            {saving ? <Loader2 size={16} className="animate-spin" /> : "Ma'lumotni saqlash"}
+          </button>
         </form>
       </Modal>
 
       {tempPw && (
-        <Modal open={!!tempPw} onClose={() => {setTempPw(''); fetchAll();}} title="Vaqtinchalik Parol">
+        <Modal open={!!tempPw} onClose={() => {setTempPw(''); fetchAll();}} title="Yangi parol yaratildi">
           <div className="space-y-4">
-            <p className="text-sm text-slate-500">Foydalanuvchi uchun tizim tomonidan yaratilgan parol:</p>
-            <div className="p-4 bg-blue-50 border border-blue-100 text-blue-700 rounded-xl text-lg font-mono text-center font-bold tracking-wider">
+            <p className="text-sm text-slate-500">Ushbu parolni nusxalab oling. U faqat bir marta ko'rsatiladi:</p>
+            <div className="p-4 bg-blue-50 border border-blue-100 text-blue-700 rounded-xl text-xl font-mono text-center font-bold tracking-widest uppercase">
               {tempPw}
             </div>
-            <p className="text-[10px] text-amber-600 bg-amber-50 p-2 rounded-lg italic">⚠️ Diqqat: Bu parolni nusxalab oling, u faqat bir marta ko'rsatiladi.</p>
-            <button onClick={() => {setTempPw(''); fetchAll();}} className="btn-primary w-full justify-center py-3">Nusxa oldim va tushundim</button>
+            <button onClick={() => {setTempPw(''); fetchAll();}} className="btn-primary w-full justify-center py-3">Tushunib nusxa oldim</button>
           </div>
         </Modal>
       )}
