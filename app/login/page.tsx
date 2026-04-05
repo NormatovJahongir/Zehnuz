@@ -5,14 +5,15 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { GraduationCap, Eye, EyeOff, LogIn, AlertCircle, ArrowRight } from 'lucide-react';
 
-// 1. Asosiy mantiq va forma qismini alohida komponentga olamiz
+// 1. Forma mantiqi alohida komponentda (useSearchParams shu yerda)
 function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
-  const [form, setForm]       = useState({ username: '', password: '' });
-  const [showPw, setShowPw]   = useState(false);
+  
+  const [form, setForm] = useState({ username: '', password: '' });
+  const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState('');
+  const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,40 +21,48 @@ function LoginForm() {
     setError('');
 
     try {
-      const res  = await fetch('/api/login', {
-        method:  'POST',
+      const res = await fetch('/api/login', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify(form),
+        body: JSON.stringify(form),
       });
+      
       const data = await res.json();
 
-      if (!res.ok) { setError(data.error ?? 'Xatolik'); return; }
+      if (!res.ok) {
+        setError(data.error ?? 'Login yoki parol noto‘g‘ri');
+        setLoading(false);
+        return;
+      }
 
       const { role, centerId } = data.user;
       const redirect = params.get('redirect');
 
-      if (redirect) { router.push(redirect); return; }
+      // Agar yo'naltirish manzili bo'lsa, o'sha yerga, aks holda rolga qarab dashboardga
+      if (redirect && redirect.startsWith('/')) {
+        router.push(redirect);
+        return;
+      }
 
       switch (role) {
-        case 'SUPER_ADMIN': router.push('/admin/dashboard');       break;
-        case 'ADMIN':       router.push(`/center/${centerId}`);    break;
-        case 'TEACHER':     router.push('/teacher/attendance');    break;
-        default:            router.push('/student/dashboard');     break;
+        case 'SUPER_ADMIN': router.push('/admin/dashboard'); break;
+        case 'ADMIN':       router.push(`/center/${centerId}`); break;
+        case 'TEACHER':     router.push('/teacher/attendance'); break;
+        default:            router.push('/student/dashboard'); break;
       }
-    } catch {
-      setError('Server bilan ulanishda xatolik');
-    } finally {
+    } catch (err) {
+      setError('Server bilan ulanishda xatolik yuz berdi');
       setLoading(false);
     }
   };
 
   return (
-    <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-8 shadow-2xl">
+    <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-8 shadow-2xl animate-in fade-in zoom-in duration-300">
       <h2 className="text-white font-bold text-2xl mb-1">Kirish</h2>
       <p className="text-slate-400 text-sm mb-8">Hisobingizga kiring</p>
 
       {error && (
-        <div className="mb-5 bg-red-500/20 border border-red-500/30 rounded-xl px-4 py-3 flex items-center gap-2 text-red-300 text-sm animate-fade-in">
+        <div className="mb-5 bg-red-500/20 border border-red-500/30 rounded-xl px-4 py-3 flex items-center gap-2 text-red-300 text-sm animate-bounce">
           <AlertCircle size={16} className="shrink-0" />
           {error}
         </div>
@@ -63,6 +72,7 @@ function LoginForm() {
         <div>
           <label className="block text-slate-300 text-sm font-medium mb-2">Login</label>
           <input
+            autoComplete="username"
             className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3
                        text-white placeholder-slate-500 focus:outline-none focus:ring-2
                        focus:ring-blue-500 focus:border-transparent transition-all"
@@ -70,7 +80,6 @@ function LoginForm() {
             value={form.username}
             onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
             required
-            autoFocus
           />
         </div>
 
@@ -79,6 +88,7 @@ function LoginForm() {
           <div className="relative">
             <input
               type={showPw ? 'text' : 'password'}
+              autoComplete="current-password"
               className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 pr-12
                          text-white placeholder-slate-500 focus:outline-none focus:ring-2
                          focus:ring-blue-500 focus:border-transparent transition-all"
@@ -102,7 +112,7 @@ function LoginForm() {
           disabled={loading}
           className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white
                      font-bold py-3.5 rounded-xl flex items-center justify-center gap-2
-                     transition-all shadow-lg shadow-blue-600/30 mt-2"
+                     transition-all shadow-lg shadow-blue-600/30 mt-2 active:scale-[0.98]"
         >
           {loading ? (
             <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -127,14 +137,14 @@ function LoginForm() {
   );
 }
 
-// 2. Asosiy sahifa komponenti (Suspense bilan o'ralgan)
+// 2. Asosiy Sahifa
 export default function LoginPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex">
-      {/* Left panel */}
+      {/* Left panel - Desktop */}
       <div className="hidden lg:flex flex-col justify-between w-[480px] p-12 border-r border-white/10">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-blue-500 rounded-xl flex items-center justify-center">
+          <div className="w-10 h-10 bg-blue-500 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
             <GraduationCap size={22} className="text-white" />
           </div>
           <span className="text-white font-bold text-xl tracking-tight">Zehn.uz</span>
@@ -155,29 +165,38 @@ export default function LoginPage() {
               ['🗺️', "Xaritada markaz joylashuvini ko'rsatish"],
               ['💳', "To'lovlarni kuzatish va hisobot"],
             ].map(([icon, text]) => (
-              <div key={text} className="flex items-center gap-3 text-slate-300">
+              <div key={text} className="flex items-center gap-3 text-slate-300 hover:translate-x-2 transition-transform cursor-default">
                 <span className="text-xl">{icon}</span>
-                <span className="text-sm">{text}</span>
+                <span className="text-sm font-medium">{text}</span>
               </div>
             ))}
           </div>
         </div>
 
-        <p className="text-slate-600 text-sm">© 2026 Zehn.uz</p>
+        <p className="text-slate-600 text-sm">© {new Date().getFullYear()} Zehn.uz</p>
       </div>
 
-      {/* Right panel — form */}
-      <div className="flex-1 flex items-center justify-center p-6">
-        <div className="w-full max-w-md">
+      {/* Right panel — Form container */}
+      <div className="flex-1 flex items-center justify-center p-6 relative overflow-hidden">
+        {/* Orqa fon uchun dekorativ elementlar */}
+        <div className="absolute top-1/4 -right-20 w-64 h-64 bg-blue-600/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-1/4 -left-20 w-64 h-64 bg-indigo-600/10 rounded-full blur-3xl" />
+
+        <div className="w-full max-w-md relative z-10">
           {/* Mobile logo */}
           <div className="flex items-center gap-2 justify-center mb-8 lg:hidden">
-            <div className="w-9 h-9 bg-blue-500 rounded-xl flex items-center justify-center">
+            <div className="w-9 h-9 bg-blue-500 rounded-xl flex items-center justify-center shadow-lg">
               <GraduationCap size={20} className="text-white" />
             </div>
             <span className="text-white font-bold text-lg">Zehn.uz</span>
           </div>
 
-          <Suspense fallback={<div className="text-white text-center">Yuklanmoqda...</div>}>
+          <Suspense fallback={
+            <div className="bg-white/5 border border-white/10 rounded-3xl p-12 text-center">
+              <div className="w-10 h-10 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mx-auto mb-4" />
+              <p className="text-slate-400 font-medium">Yuklanmoqda...</p>
+            </div>
+          }>
             <LoginForm />
           </Suspense>
         </div>
