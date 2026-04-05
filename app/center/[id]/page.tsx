@@ -39,16 +39,16 @@ export default function CenterPage({ params }: { params: { id: string } }) {
   const [settingsForm, setSettingsForm] = useState<any>({});
   const [location, setLocation] = useState({ lat: 41.2995, lng: 69.2401 });
 
-  // 1. Navigatsiya elementlarini markazlashtirish
+  // 1. Navigatsiya elementlari (href qo'shildi build xatosini oldini olish uchun)
   const navItems = useMemo(() => [
-    { icon: LayoutDashboard, label: 'Dashboard', id: 'dashboard' },
-    { icon: BookOpen,        label: 'Fanlar',    id: 'subjects' },
-    { icon: UserCheck,       label: "Ustozlar",  id: 'teachers' },
-    { icon: Users,           label: "O'quvchilar", id: 'students' },
-    { icon: CreditCard,      label: "To'lovlar",  id: 'payments' },
-    { icon: CalendarCheck,   label: 'Davomat',   id: 'attendance' },
-    { icon: Map,             label: 'Xarita',    id: 'map' },
-    { icon: Settings,        label: 'Sozlamalar', id: 'settings' },
+    { icon: LayoutDashboard, label: 'Dashboard', id: 'dashboard', href: '#' },
+    { icon: BookOpen,        label: 'Fanlar',    id: 'subjects',  href: '#subjects' },
+    { icon: UserCheck,       label: "Ustozlar",  id: 'teachers',  href: '#teachers' },
+    { icon: Users,           label: "O'quvchilar", id: 'students',  href: '#students' },
+    { icon: CreditCard,      label: "To'lovlar",  id: 'payments',  href: '#payments' },
+    { icon: CalendarCheck,   label: 'Davomat',   id: 'attendance', href: '#attendance' },
+    { icon: Map,             label: 'Xarita',    id: 'map',        href: '#map' },
+    { icon: Settings,        label: 'Sozlamalar', id: 'settings',   href: '#settings' },
   ], []);
 
   const fetchAll = useCallback(async () => {
@@ -150,28 +150,31 @@ export default function CenterPage({ params }: { params: { id: string } }) {
 
   return (
     <div className="flex min-h-screen bg-slate-50">
-      {/* 2. SIDEBAR - Faqat bitta joyda va Desktop uchun */}
+      {/* 2. SIDEBAR - Build xatoligi to'g'irlandi */}
       <Sidebar
         title={center?.name ?? 'Markaz'}
         subtitle="Admin panel"
         navItems={navItems.map(item => ({
           ...item,
           active: tab === item.id,
-          onClick: () => setTab(item.id as Tab)
+          onClick: (e: React.MouseEvent) => {
+            e.preventDefault();
+            setTab(item.id as Tab);
+          }
         }))}
       />
 
-      {/* 3. MAIN CONTENT - lg:ml-[260px] Sidebar kengligi uchun */}
+      {/* 3. MAIN CONTENT */}
       <main className="flex-1 min-w-0 flex flex-col lg:ml-[260px] pb-20 lg:pb-0">
         <header className="bg-white border-b border-slate-100 h-16 flex items-center justify-between px-8 sticky top-0 z-20">
           <div className="flex items-center gap-2 text-sm">
-            <span className="text-blue-600 font-semibold">{center?.name}</span>
+            <span className="text-blue-600 font-semibold truncate max-w-[150px]">{center?.name}</span>
             <span className="text-slate-300">/</span>
             <span className="text-slate-500 capitalize">{tab}</span>
           </div>
           {['subjects', 'teachers', 'students'].includes(tab) && (
-            <button onClick={() => openModal(tab as Tab)} className="btn-primary text-sm px-4 py-2">
-              <Plus size={16} /> Qo'shish
+            <button onClick={() => openModal(tab as Tab)} className="btn-primary text-sm px-4 py-2 flex items-center gap-2">
+              <Plus size={16} /> <span className="hidden sm:inline">Qo'shish</span>
             </button>
           )}
         </header>
@@ -196,12 +199,15 @@ export default function CenterPage({ params }: { params: { id: string } }) {
               <div className="grid lg:grid-cols-2 gap-6">
                 <div className="card p-6">
                   <h3 className="font-bold text-slate-800 mb-4">So'nggi o'quvchilar</h3>
-                  {students.length === 0 ? <p className="text-center py-8 text-slate-400">Hali o'quvchi yo'q</p> : 
+                  {students.length === 0 ? <p className="text-center py-8 text-slate-400 text-sm">Hali o'quvchi yo'q</p> : 
                     <div className="space-y-3">
                       {students.slice(0, 5).map(s => (
                         <div key={s.id} className="flex items-center gap-3">
                           <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs">{getInitials(`${s.firstName} ${s.lastName}`)}</div>
-                          <div className="flex-1 truncate"><p className="text-sm font-medium">{s.firstName} {s.lastName}</p></div>
+                          <div className="flex-1 truncate">
+                            <p className="text-sm font-medium text-slate-700">{s.firstName} {s.lastName}</p>
+                            <p className="text-[10px] text-slate-400">{s.phone || s.username}</p>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -215,16 +221,19 @@ export default function CenterPage({ params }: { params: { id: string } }) {
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {subjects.length === 0 ? <EmptyState icon={BookOpen} text="Fan qo'shilmagan" action={() => openModal('subjects')} /> :
                 subjects.map(s => (
-                  <div key={s.id} className="card p-6">
+                  <div key={s.id} className="card p-6 hover:shadow-md transition-shadow">
                     <div className="flex justify-between items-start mb-4">
                       <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center"><BookOpen size={20} /></div>
                       <div className="flex gap-1">
-                        <button onClick={() => openModal('subjects', s)} className="p-1.5 text-slate-400 hover:text-blue-600"><Pencil size={15} /></button>
-                        <button onClick={() => handleDelete('subject', s.id)} className="p-1.5 text-slate-400 hover:text-red-600"><Trash2 size={15} /></button>
+                        <button onClick={() => openModal('subjects', s)} className="p-1.5 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-blue-50"><Pencil size={15} /></button>
+                        <button onClick={() => handleDelete('subject', s.id)} className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50"><Trash2 size={15} /></button>
                       </div>
                     </div>
                     <h3 className="font-bold text-slate-800">{s.name}</h3>
-                    <div className="mt-4 flex justify-between font-bold text-blue-600"><span>{formatCurrency(s.price)}</span><span className="text-slate-400 text-xs">{s.durationMonths} oy</span></div>
+                    <div className="mt-4 flex justify-between items-center font-bold text-blue-600">
+                      <span>{formatCurrency(s.price)}</span>
+                      <span className="text-slate-400 text-xs font-normal">{s.durationMonths} oy</span>
+                    </div>
                   </div>
                 ))
               }
@@ -233,7 +242,7 @@ export default function CenterPage({ params }: { params: { id: string } }) {
 
           {tab === 'map' && (
             <div className="card p-6 space-y-4">
-              <div className="flex justify-between items-center"><h2 className="font-bold">Markaz joylashuvi</h2></div>
+              <div className="flex justify-between items-center"><h2 className="font-bold text-slate-800">Markaz joylashuvi</h2></div>
               <MapPicker initialPos={[location.lat, location.lng]} onLocationSelect={setLocation} />
               <button onClick={async () => {
                 setSaving(true);
@@ -243,19 +252,20 @@ export default function CenterPage({ params }: { params: { id: string } }) {
                 });
                 setSaving(false);
                 if (res.ok) showMsg('ok', 'Joylashuv saqlandi!');
-              }} className="btn-primary w-fit">{saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} Saqlash</button>
+                else showMsg('err', 'Xatolik yuz berdi');
+              }} className="btn-primary w-fit flex items-center gap-2">
+                {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} Saqlash
+              </button>
             </div>
           )}
-          
-          {/* Boshqa Tab-lar (teachers, students, payments, settings) xuddi shu tartibda davom etadi... */}
         </div>
 
-        {/* 4. MOBILE NAV - Faqat kichik ekranlarda */}
-        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 flex lg:hidden z-30">
+        {/* 4. MOBILE BOTTOM NAV */}
+        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 flex lg:hidden z-30 shadow-[0_-4px_10px_rgba(0,0,0,0.03)]">
           {navItems.slice(0, 5).map((item) => (
             <button key={item.id} onClick={() => setTab(item.id as Tab)}
               className={`flex-1 flex flex-col items-center py-3 text-[10px] gap-1 transition-colors
-                ${tab === item.id ? 'text-blue-600' : 'text-slate-400'}`}>
+                ${tab === item.id ? 'text-blue-600 font-semibold' : 'text-slate-400'}`}>
               <item.icon size={20} />
               {item.label}
             </button>
@@ -263,39 +273,62 @@ export default function CenterPage({ params }: { params: { id: string } }) {
         </nav>
       </main>
 
-      {/* 5. MODAL-LAR */}
-      <Modal open={modal.open && !tempPw} onClose={() => setModal({ open: false, type: '' })} title="Ma'lumot">
+      {/* 5. MODALS */}
+      <Modal open={modal.open && !tempPw} onClose={() => setModal({ open: false, type: '' })} title={form.id ? "Tahrirlash" : "Yangi qo'shish"}>
         <form onSubmit={handleSave} className="space-y-4">
-          <input className="input" placeholder="Nomi/Ismi" value={form.name ?? ''} onChange={e => setForm({ ...form, name: e.target.value })} required />
+          <div>
+            <label className="block text-xs font-medium text-slate-500 mb-1">Nomi / Ismi</label>
+            <input className="input" placeholder="Kiriting..." value={form.name ?? ''} onChange={e => setForm({ ...form, name: e.target.value })} required />
+          </div>
+          
           {modal.type === 'subjects' ? (
              <div className="grid grid-cols-2 gap-3">
-                <input type="number" className="input" placeholder="Narxi" value={form.price ?? ''} onChange={e => setForm({...form, price: e.target.value})} />
-                <input type="number" className="input" placeholder="Oy" value={form.durationMonths ?? ''} onChange={e => setForm({...form, durationMonths: e.target.value})} />
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Narxi (so'm)</label>
+                  <input type="number" className="input" placeholder="500000" value={form.price ?? ''} onChange={e => setForm({...form, price: e.target.value})} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Davomiyligi (oy)</label>
+                  <input type="number" className="input" placeholder="3" value={form.durationMonths ?? ''} onChange={e => setForm({...form, durationMonths: e.target.value})} />
+                </div>
              </div>
           ) : (
-             <input className="input" placeholder="Telefon" value={form.phone ?? ''} onChange={e => setForm({...form, phone: e.target.value})} />
+             <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">Telefon raqami</label>
+                <input className="input" placeholder="+998" value={form.phone ?? ''} onChange={e => setForm({...form, phone: e.target.value})} />
+             </div>
           )}
-          <button type="submit" className="btn-primary w-full py-3" disabled={saving}>Saqlash</button>
+          <div className="flex gap-3 mt-6">
+            <button type="button" onClick={() => setModal({open: false, type: ''})} className="btn-secondary flex-1">Bekor qilish</button>
+            <button type="submit" className="btn-primary flex-1 py-3 justify-center" disabled={saving}>
+              {saving ? <Loader2 size={16} className="animate-spin" /> : "Saqlash"}
+            </button>
+          </div>
         </form>
       </Modal>
 
       {tempPw && (
-        <Modal open={!!tempPw} onClose={() => setTempPw('')} title="Yangi Parol">
-          <div className="p-4 bg-amber-50 text-amber-800 rounded-lg mb-4 text-sm font-mono text-center">{tempPw}</div>
-          <button onClick={() => {setTempPw(''); fetchAll();}} className="btn-primary w-full">Nusxa oldim</button>
+        <Modal open={!!tempPw} onClose={() => {setTempPw(''); fetchAll();}} title="Vaqtinchalik Parol">
+          <div className="space-y-4">
+            <p className="text-sm text-slate-500">Foydalanuvchi uchun tizim tomonidan yaratilgan parol:</p>
+            <div className="p-4 bg-blue-50 border border-blue-100 text-blue-700 rounded-xl text-lg font-mono text-center font-bold tracking-wider">
+              {tempPw}
+            </div>
+            <p className="text-[10px] text-amber-600 bg-amber-50 p-2 rounded-lg italic">⚠️ Diqqat: Bu parolni nusxalab oling, u faqat bir marta ko'rsatiladi.</p>
+            <button onClick={() => {setTempPw(''); fetchAll();}} className="btn-primary w-full justify-center py-3">Nusxa oldim va tushundim</button>
+          </div>
         </Modal>
       )}
     </div>
   );
 }
 
-// Yordamchi komponentlar
 function EmptyState({ icon: Icon, text, action }: any) {
   return (
-    <div className="col-span-full card p-12 flex flex-col items-center gap-4 border-2 border-dashed border-slate-200">
-      <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-400"><Icon size={32} /></div>
+    <div className="col-span-full card p-12 flex flex-col items-center gap-4 border-2 border-dashed border-slate-200 bg-slate-50/50">
+      <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-slate-300 shadow-sm"><Icon size={32} /></div>
       <p className="text-slate-400 font-medium">{text}</p>
-      <button onClick={action} className="btn-primary text-sm"><Plus size={16} /> Qo'shish</button>
+      <button onClick={action} className="btn-primary text-sm flex items-center gap-2 px-6"><Plus size={16} /> Qo'shish</button>
     </div>
   );
 }
