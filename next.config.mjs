@@ -7,7 +7,6 @@ const nextConfig = {
       { protocol: 'http', hostname: 'localhost' },
     ],
   },
-  // CSP xatoligini tuzatish uchun headers qo'shamiz
   async headers() {
     return [
       {
@@ -17,11 +16,12 @@ const nextConfig = {
             key: 'Content-Security-Policy',
             value: `
               default-src 'self';
-              script-src 'self' https://unpkg.com https://telegram.org;
+              script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com https://telegram.org;
               style-src 'self' 'unsafe-inline' https://unpkg.com;
-              img-src 'self' blob: data: https://unpkg.com https://*.openstreetmap.org;
+              img-src 'self' blob: data: https://unpkg.com https://*.openstreetmap.org https://tile.openstreetmap.org;
               font-src 'self' data:;
-              connect-src 'self' https://*.openstreetmap.org https://api.telegram.org;
+              connect-src 'self' https://*.openstreetmap.org https://tile.openstreetmap.org https://api.telegram.org;
+              frame-src 'self' https://telegram.org;
               frame-ancestors 'none';
               upgrade-insecure-requests;
             `.replace(/\s{2,}/g, ' ').trim(),
