@@ -49,28 +49,53 @@ export default function CenterPage({ params }: { params: { id: string } }) {
   ], []);
 
   const fetchAll = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/center/data?centerId=${centerId}`);
-      const data = await res.json();
-      if (data.success) {
-        setCenter(data.center);
-        setSubjects(data.subjects ?? []);
-        setTeachers(data.teachers ?? []);
-        setStudents(data.students ?? []);
-        if (data.center) {
-          setLocation({ lat: data.center.latitude ?? 41.2995, lng: data.center.longitude ?? 69.2401 });
-        }
+  setLoading(true);
+  try {
+    // 1. Markazning umumiy ma'lumotlarini yuklash (Statik ma'lumotlar)
+    const res = await fetch(`/api/center/data?centerId=${centerId}&tab=${tab}`);
+    const data = await res.json();
+    
+    if (data.success) {
+      setCenter(data.center);
+      if (data.center) {
+        setLocation({ 
+          lat: data.center.latitude ?? 41.2995, 
+          lng: data.center.longitude ?? 69.2401 
+        });
       }
-      const pr = await fetch(`/api/payment?centerId=${centerId}`);
-      const pd = await pr.json();
-      if (pd.success) setPayments(pd.payments ?? []);
-    } finally {
-      setLoading(false);
-    }
-  }, [centerId]);
 
-  useEffect(() => { fetchAll(); }, [fetchAll]);
+      // 2. Tanlangan tabga qarab tegishli stateni yangilash
+      // API dan kelayotgan data strukturasiga moslang
+      switch (tab) {
+        case 'subjects':
+          setSubjects(data.subjects ?? []);
+          break;
+        case 'teachers':
+          setTeachers(data.teachers ?? []);
+          break;
+        case 'students':
+          setStudents(data.students ?? []);
+          break;
+        case 'payments':
+          // To'lovlar uchun alohida API bo'lsa
+          const pr = await fetch(`/api/payment?centerId=${centerId}`);
+          const pd = await pr.json();
+          if (pd.success) setPayments(pd.payments ?? []);
+          break;
+        case 'dashboard':
+          // Dashboardda hamma qisqa ma'lumotlar kerak bo'lishi mumkin
+          setSubjects(data.subjects ?? []);
+          setTeachers(data.teachers ?? []);
+          setStudents(data.students ?? []);
+          break;
+      }
+    }
+  } catch (error) {
+    console.error("Ma'lumot yuklashda xatolik:", error);
+  } finally {
+    setLoading(false);
+  }
+}, [centerId, tab]); // 'tab' o'zgarganda funksiya qayta yaratiladi
 
   const showMsg = (type: 'ok' | 'err', text: string) => {
     setMsg({ type, text });
