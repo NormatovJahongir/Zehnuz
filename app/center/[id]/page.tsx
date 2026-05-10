@@ -48,55 +48,50 @@ export default function CenterPage({ params }: { params: { id: string } }) {
     { icon: Settings,        label: 'Sozlamalar', id: 'settings',   href: '#settings' },
   ], []);
 
-  const fetchAll = useCallback(async () => {
+ // fetchAll ichidagi try-catch qismini shunday yangilang:
+const fetchAll = useCallback(async () => {
   setLoading(true);
   try {
-    // 1. Markazning umumiy ma'lumotlarini yuklash (Statik ma'lumotlar)
     const res = await fetch(`/api/center/data?centerId=${centerId}&tab=${tab}`);
+    
+    // Agar status 200 bo'lmasa, xatoga otamiz
+    if (!res.ok) throw new Error("Serverdan xato javob keldi");
+
     const data = await res.json();
     
     if (data.success) {
       setCenter(data.center);
-      if (data.center) {
-        setLocation({ 
-          lat: data.center.latitude ?? 41.2995, 
-          lng: data.center.longitude ?? 69.2401 
-        });
+      // Xarita koordinatalari
+      if (data.center?.latitude) {
+        setLocation({ lat: data.center.latitude, lng: data.center.longitude });
       }
 
-      // 2. Tanlangan tabga qarab tegishli stateni yangilash
-      // API dan kelayotgan data strukturasiga moslang
-      switch (tab) {
-        case 'subjects':
-          setSubjects(data.subjects ?? []);
-          break;
-        case 'teachers':
-          setTeachers(data.teachers ?? []);
-          break;
-        case 'students':
-          setStudents(data.students ?? []);
-          break;
-        case 'payments':
-          // To'lovlar uchun alohida API bo'lsa
-          const pr = await fetch(`/api/payment?centerId=${centerId}`);
-          const pd = await pr.json();
-          if (pd.success) setPayments(pd.payments ?? []);
-          break;
-        case 'dashboard':
-          // Dashboardda hamma qisqa ma'lumotlar kerak bo'lishi mumkin
-          setSubjects(data.subjects ?? []);
-          setTeachers(data.teachers ?? []);
-          setStudents(data.students ?? []);
-          break;
+      // Tablarga mos ma'lumotlarni o'rnatish
+      if (tab === 'subjects') setSubjects(data.subjects ?? []);
+      if (tab === 'teachers') setTeachers(data.teachers ?? []);
+      if (tab === 'students') setStudents(data.students ?? []);
+      if (tab === 'dashboard') {
+         setSubjects(data.subjects ?? []);
+         setTeachers(data.teachers ?? []);
+         setStudents(data.students ?? []);
+      }
+      
+      // To'lovlar alohida bo'lsa
+      if (tab === 'payments' || tab === 'dashboard') {
+         const pr = await fetch(`/api/payment?centerId=${centerId}`);
+         const pd = await pr.json();
+         if (pd.success) setPayments(pd.payments ?? []);
       }
     }
   } catch (error) {
-    console.error("Ma'lumot yuklashda xatolik:", error);
+    console.error("Xatolik yuz berdi:", error);
+    showMsg('err', "Ma'lumotlarni yuklab bo'lmadi");
   } finally {
+    // BU JUDA MUHIM: Har qanday holatda ham loadingni o'chirish
     setLoading(false);
   }
-}, [centerId, tab]); // 'tab' o'zgarganda funksiya qayta yaratiladi
-
+}, [centerId, tab]);
+  
   const showMsg = (type: 'ok' | 'err', text: string) => {
     setMsg({ type, text });
     setTimeout(() => setMsg(null), 3000);
