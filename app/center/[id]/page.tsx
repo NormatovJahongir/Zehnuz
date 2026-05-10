@@ -91,6 +91,7 @@ const fetchAll = useCallback(async () => {
     setLoading(false);
   }
 }, [centerId, tab]);
+  useEffect(() => { fetchAll(); }, [fetchAll]);
   
   const showMsg = (type: 'ok' | 'err', text: string) => {
     setMsg({ type, text });
